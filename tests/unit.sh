@@ -50,6 +50,12 @@ eq "template: upstream" "$(render_template green shop-green:8080 | head -1)" "ur
 eq "template: slot and app" "$(render_template green shop-green:8080 | tail -1)" "slot: green app: shop"
 PROXY_TEMPLATE=""; rm -rf "$CONFIG_DIR"
 
+CONFIG_DIR=/srv/app; CONTEXT=src; DOCKERFILE=Dockerfile
+eq "dockerfile inside the context" "$(dockerfile_path)" "/srv/app/src/Dockerfile"
+DOCKERFILE=/opt/x/Dockerfile.prod
+eq "absolute dockerfile kept" "$(dockerfile_path)" "/opt/x/Dockerfile.prod"
+CONTEXT=.; DOCKERFILE=Dockerfile
+
 tmp="$(mktemp -d)"
 touch "$tmp/package.json"; echo '{"dependencies":{"next":"16"}}' > "$tmp/package.json"
 eq "detect Next.js" "$(detect_stack "$tmp")" "nextjs"

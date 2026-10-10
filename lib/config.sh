@@ -64,6 +64,10 @@ config_validate() {
 # Paths in the config are relative to the config file's directory.
 abs_path() { case "$1" in /*) echo "$1" ;; *) echo "$CONFIG_DIR/$1" ;; esac; }
 
+# The Dockerfile lives in the build context unless given as an absolute path
+# (same rule as `docker build` without -f).
+dockerfile_path() { case "$DOCKERFILE" in /*) echo "$DOCKERFILE" ;; *) echo "$(abs_path "$CONTEXT")/$DOCKERFILE" ;; esac; }
+
 # Expand $UPDATOOL_* placeholders inside RUN_ARGS / BUILD_ARGS (shell words).
 # The config is the operator's own file, so eval is acceptable here.
 expand_words() { # string version slot → one word per line

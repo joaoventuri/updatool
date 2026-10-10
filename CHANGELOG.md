@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1 — 2026-10-10
+
+- Fix: a relative `DOCKERFILE` is resolved inside `CONTEXT` (like `docker build`), not next to `updatool.conf`
+
 ## 0.2.0 — 2026-10-10
 
 - `PROXY_TEMPLATE`: keep your own proxy file (routers, middlewares, health checks) and let updatool swap only `{{UPSTREAM}}` — the safe way to adopt updatool on an existing route

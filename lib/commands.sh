@@ -191,8 +191,8 @@ cmd_doctor() {
     if [ -n "$NETWORK" ]; then
       if docker network inspect "$NETWORK" >/dev/null 2>&1; then check_item network 1 "$NETWORK"; else check_item network 0 "docker network '$NETWORK' not found"; fi
     fi
-    if [ -f "$CONFIG_DIR/$DOCKERFILE" ]; then
-      if grep -q -- '--mount=type=cache' "$CONFIG_DIR/$DOCKERFILE"; then check_item cache 1 "Dockerfile uses RUN --mount=type=cache"
+    if [ -f "$(dockerfile_path)" ]; then
+      if grep -q -- '--mount=type=cache' "$(dockerfile_path)"; then check_item cache 1 "Dockerfile uses RUN --mount=type=cache"
       else check_item cache 0 "Dockerfile has no cache mounts — see presets/ (builds stay slow)"; fi
     fi
     case "$PROXY" in

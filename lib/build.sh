@@ -58,7 +58,7 @@ build_image() { # version
         --provenance=false --sbom=false "${args[@]}" \
         --build-arg "APP_VERSION=$version" \
         --label "io.updatool.app=$APP" --label "io.updatool.version=$version" \
-        -f "$DOCKERFILE" -t "$IMAGE:$version" --load "$CONTEXT" ) >"$log" 2>&1; then
+        -f "$(dockerfile_path)" -t "$IMAGE:$version" --load "$(abs_path "$CONTEXT")" ) >"$log" 2>&1; then
     tail -n 40 "$log" >&2 || true
     finish "$EXIT_BUILD" build_failed "build failed — production untouched" log "$log" version "$version"
   fi
