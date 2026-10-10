@@ -18,6 +18,19 @@ cache every time, so a one-line fix costs a full cold build.
 
 > Measured: a Next.js build went from 236 s to 40 s with no code change — only the cache.
 
+**A cache must prove it is fresh.** Compiler caches (Turbopack, webpack, Gradle…)
+are fast because they skip work — and once in a while they skip work they should
+have done. We shipped a Next.js image with the new JavaScript and the *previous*
+release's CSS, byte for byte; three faithful replays could not reproduce it. Do
+not answer that by turning the cache off (4× slower forever). Make every build
+plant a unique marker in its inputs and check that the marker reached the output;
+if not, wipe the cache and build cold, automatically (`presets/nextjs-build.sh`).
+
+- Mount compiler caches with **`sharing=locked`**: concurrent builds wait for each
+  other instead of writing the same cache at once (`shared` is the default).
+- Never extract sources into a shared folder **before** taking the deploy lock.
+  Give each release a private snapshot: `updatool ship --source release.tar.gz`.
+
 ## 2. Check before you build, not inside the build
 
 Type checks, linters and tests are *gates*, not *artifacts*. Running them inside
@@ -92,7 +105,9 @@ machines need contracts.
 ### Checklist for a new app
 
 - [ ] `updatool init`, then `updatool doctor` is all green
-- [ ] Dockerfile uses cache mounts (preset) and a non-root user
+- [ ] Dockerfile uses cache mounts (preset, `sharing=locked` for compiler caches) and a non-root user
+- [ ] Compiler cache output is verified (Next.js: `presets/nextjs-build.sh`)
+- [ ] Several agents ship? Use `--source <tar.gz>` — never a shared source folder
 - [ ] `HEALTH_PATH` checks real readiness; app exits cleanly on `SIGTERM`
 - [ ] `CHECK_CMD` runs the type check and tests
 - [ ] `BUILD_CPUS` set on shared hosts

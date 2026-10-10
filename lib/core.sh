@@ -73,9 +73,9 @@ die() { finish "${2:-$EXIT_FAIL}" error "$1"; }
 need() { command -v "$1" >/dev/null 2>&1 || die "missing dependency: $1" "$EXIT_USAGE"; }
 
 # Shared option parser. Sets: CONFIG_FILE OPT_VERSION OPT_EXPECT OPT_SKIP_CHECKS
-# OPT_SKIP_BUILD OPT_NO_WAIT JSON_MODE OPT_FORCE OPT_REST (remaining args).
+# OPT_SKIP_BUILD OPT_NO_WAIT JSON_MODE OPT_FORCE OPT_SOURCE OPT_REST (remaining args).
 CONFIG_FILE="${UPDATOOL_CONFIG:-./updatool.conf}"
-OPT_VERSION=""; OPT_EXPECT=""; OPT_SKIP_CHECKS=0; OPT_SKIP_BUILD=0; OPT_NO_WAIT=0; OPT_FORCE=0
+OPT_VERSION=""; OPT_EXPECT=""; OPT_SKIP_CHECKS=0; OPT_SKIP_BUILD=0; OPT_NO_WAIT=0; OPT_FORCE=0; OPT_SOURCE=""
 OPT_REST=()
 parse_opts() {
   while [ $# -gt 0 ]; do
@@ -83,6 +83,7 @@ parse_opts() {
       -c|--config) CONFIG_FILE="${2:?--config needs a file}"; shift ;;
       -v|--version) OPT_VERSION="${2:?--version needs a value}"; shift ;;
       --expect) OPT_EXPECT="${2:?--expect needs a version}"; shift ;;
+      --source) OPT_SOURCE="${2:?--source needs a .tar.gz or a directory}"; shift ;;
       --skip-checks) OPT_SKIP_CHECKS=1 ;;
       --skip-build) OPT_SKIP_BUILD=1 ;;
       --no-wait) OPT_NO_WAIT=1 ;;

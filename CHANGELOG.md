@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-10-10
+
+- `--source <tar.gz|dir>` for `build` and `ship`: each release builds from a private snapshot taken **after** the deploy lock is held. Fixes the race where two agents extract into one shared source folder and a build ships the other agent's files (or a mix)
+- Next.js preset: `presets/nextjs-build.sh` proves the CSS is fresh — a unique marker goes into the global stylesheet and must reach `.next/static`; if the Turbopack cache hands back stale CSS, the cache is wiped and the build runs cold, automatically. `updatool init` installs it as `scripts/build-next.sh`
+- Presets: compiler cache mounted with `sharing=locked` (concurrent builds wait instead of writing the same cache)
+- Methodology: "a cache must prove it is fresh"
+
 ## 0.2.2 — 2026-10-10
 
 - Options are accepted before the command too (`updatool -c app.conf ship`)

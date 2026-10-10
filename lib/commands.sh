@@ -7,6 +7,7 @@ cmd_ship() {
   local version live idle prev_version
   version="$(release_version)"
   lock_acquire ship "$version"
+  prepare_source "$version"
 
   live="$(live_slot)"; prev_version="$(live_version)"
   if [ -n "$OPT_EXPECT" ] && [ "$OPT_EXPECT" != "$prev_version" ]; then
@@ -85,6 +86,7 @@ cmd_build() {
   parse_opts "$@"; config_load; config_validate
   local version; version="$(release_version)"
   lock_acquire build "$version"
+  prepare_source "$version"
   run_checks
   build_image "$version"
   history_add build "$version" - ok
@@ -235,6 +237,10 @@ cmd_init() {
   if [ ! -f Dockerfile ] && [ -f "$UPDATOOL_HOME/presets/$stack.Dockerfile" ]; then
     cp "$UPDATOOL_HOME/presets/$stack.Dockerfile" Dockerfile
     ok "wrote a cache-ready Dockerfile (presets/$stack.Dockerfile)"
+    if [ "$stack" = nextjs ] && [ ! -f scripts/build-next.sh ]; then
+      mkdir -p scripts && cp "$UPDATOOL_HOME/presets/nextjs-build.sh" scripts/build-next.sh
+      ok "wrote scripts/build-next.sh (Turbopack cache with a fresh-CSS proof)"
+    fi
   elif [ -f Dockerfile ]; then
     if grep -q -- '--mount=type=cache' Dockerfile; then ok "Dockerfile already uses cache mounts"
     else warn "your Dockerfile has no cache mounts — compare with $UPDATOOL_HOME/presets/$stack.Dockerfile"; fi

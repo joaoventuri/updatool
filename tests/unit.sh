@@ -11,6 +11,8 @@ export UPDATOOL_HOME="$ROOT"
 . "$ROOT/lib/lock.sh"
 # shellcheck source=../lib/state.sh
 . "$ROOT/lib/state.sh"
+# shellcheck source=../lib/build.sh
+. "$ROOT/lib/build.sh"
 # shellcheck source=../lib/slots.sh
 . "$ROOT/lib/slots.sh"
 # shellcheck source=../lib/proxy.sh
@@ -66,5 +68,35 @@ rm -rf "$tmp"
 for f in "$ROOT"/presets/*.Dockerfile; do
   eq "preset $(basename "$f") uses a cache mount" "$(grep -c -- '--mount=type=cache' "$f" | awk '{print ($1>0)}')" "1"
 done
+
+# --source: private snapshot, made after the lock, removed on release
+STATE_DIR="$(mktemp -d)"; APP=shop; CONFIG_DIR="$STATE_DIR"
+src="$(mktemp -d)"; echo v1 > "$src/f.txt"; tar -czf "$src.tgz" -C "$src" .
+OPT_SOURCE="$src.tgz"; prepare_source v1 >/dev/null 2>&1
+eq "--source tar: CONTEXT is a private snapshot" "$(cat "$CONTEXT/f.txt")" "v1"
+eq "--source tar: snapshot lives under the state dir" "${CONTEXT#"$STATE_DIR/shop/src/"}" "v1.$$"
+echo v2 > "$src/f.txt"
+eq "--source: later changes to the original do not leak in" "$(cat "$CONTEXT/f.txt")" "v1"
+snap="$CONTEXT"; cleanup_source
+eq "--source: snapshot removed afterwards" "$([ -e "$snap" ] && echo kept || echo removed)" "removed"
+OPT_SOURCE="$src"; prepare_source v2 >/dev/null 2>&1
+eq "--source dir: copied" "$(cat "$CONTEXT/f.txt")" "v2"
+cleanup_source; OPT_SOURCE=""; SOURCE_DIR=""; CONTEXT=.
+rm -rf "$src" "$src.tgz" "$STATE_DIR"
+
+# nextjs-build.sh: stale CSS from the cache → cold rebuild; fresh → fast path
+nb="$(mktemp -d)"; mkdir -p "$nb/src/app" "$nb/bin" "$nb/.next/cache"; echo 'body{}' > "$nb/src/app/globals.css"; echo old > "$nb/.next/cache/state"
+cat > "$nb/bin/npm" <<'NPM'
+#!/bin/sh
+mkdir -p .next/static/chunks
+if [ -f .next/cache/state ]; then : > .next/static/chunks/a.css; else cat src/app/globals.css > .next/static/chunks/a.css; fi
+NPM
+chmod +x "$nb/bin/npm"
+out="$(cd "$nb" && PATH="$nb/bin:$PATH" sh "$ROOT/presets/nextjs-build.sh" 2>&1)"
+eq "nextjs-build: stale CSS detected and rebuilt cold" "$(grep -c 'fresh CSS confirmed after a cold build' <<<"$out")" "1"
+eq "nextjs-build: cache wiped" "$(ls -A "$nb/.next/cache" | wc -l | tr -d ' ')" "0"
+out="$(cd "$nb" && PATH="$nb/bin:$PATH" sh "$ROOT/presets/nextjs-build.sh" 2>&1)"
+eq "nextjs-build: fresh CSS keeps the fast path" "$(grep -c 'fresh CSS confirmed (' <<<"$out")" "1"
+rm -rf "$nb"
 
 [ "$FAIL" = 0 ] && echo "ALL UNIT TESTS PASSED" || { echo "UNIT TESTS FAILED"; exit 1; }

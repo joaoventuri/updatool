@@ -39,6 +39,7 @@ lock_acquire() {
 }
 
 lock_release() {
+  cleanup_source 2>/dev/null || true
   [ "$LOCK_HELD" = 1 ] || return 0
   rm -f "$(app_dir)/deploy.lock.info"
   flock -u 9 2>/dev/null || true

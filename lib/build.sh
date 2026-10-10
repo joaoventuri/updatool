@@ -34,12 +34,33 @@ ensure_builder() {
   state_set builder.opts "$want"
 }
 
+# --source: each release builds from its own private copy, made only after the
+# lock is held. Two agents shipping at once never overwrite each other's files
+# (the classic mistake: extract into a shared ./src, then wait for the lock —
+# the build that wins the lock may send the OTHER agent's files, or a mix).
+SOURCE_DIR=""
+prepare_source() { # version
+  [ -n "$OPT_SOURCE" ] || return 0
+  local dir; dir="$(app_dir)/src/$1.$$"
+  rm -rf "$dir"; mkdir -p "$dir" || die "cannot create $dir" "$EXIT_USAGE"
+  if [ -d "$OPT_SOURCE" ]; then
+    cp -a "$OPT_SOURCE/." "$dir/" || die "could not copy $OPT_SOURCE" "$EXIT_BUILD"
+  elif [ -f "$OPT_SOURCE" ]; then
+    tar -xzf "$OPT_SOURCE" -C "$dir" || die "could not extract $OPT_SOURCE (expected a .tar.gz)" "$EXIT_BUILD"
+  else
+    die "--source not found: $OPT_SOURCE" "$EXIT_USAGE"
+  fi
+  SOURCE_DIR="$dir"; CONTEXT="$dir"
+  step "source: $OPT_SOURCE → private snapshot"
+}
+cleanup_source() { if [ -n "$SOURCE_DIR" ]; then rm -rf "$SOURCE_DIR"; fi; }
+
 run_checks() {
   if [ -z "$CHECK_CMD" ]; then return 0; fi
   if [ "$OPT_SKIP_CHECKS" = 1 ]; then warn "skipping checks (--skip-checks)"; return 0; fi
   step "checks: $CHECK_CMD"
   local log; log="$(app_dir)/last-check.log"; mkdir -p "$(app_dir)"
-  if ! ( cd "$CONFIG_DIR" && bash -c "$CHECK_CMD" ) >"$log" 2>&1; then
+  if ! ( cd "${SOURCE_DIR:-$CONFIG_DIR}" && bash -c "$CHECK_CMD" ) >"$log" 2>&1; then
     tail -n 30 "$log" >&2 || true
     finish "$EXIT_CHECKS" checks_failed "checks failed — nothing was built or changed" log "$log"
   fi
