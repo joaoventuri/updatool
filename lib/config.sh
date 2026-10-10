@@ -5,7 +5,7 @@
 CONFIG_KEYS=(APP IMAGE CONTEXT DOCKERFILE BUILD_ARGS BUILD_CPUS BUILD_MEMORY BUILD_PLATFORM
   CHECK_CMD PORT HEALTH_PATH HEALTH_TIMEOUT NETWORK RUN_ARGS SLOT_HOST_PORTS
   PROXY TRAEFIK_FILE TRAEFIK_RULE TRAEFIK_ENTRYPOINTS TRAEFIK_CERTRESOLVER TRAEFIK_SERVICE_ONLY
-  CADDY_FILE CADDY_RELOAD NGINX_FILE NGINX_RELOAD SWITCH_SETTLE VERIFY_URL
+  CADDY_FILE CADDY_RELOAD NGINX_FILE NGINX_RELOAD PROXY_TEMPLATE SWITCH_SETTLE VERIFY_URL
   DRAIN_SECONDS STOP_TIMEOUT KEEP_RELEASES HOOK_PRE_SWITCH HOOK_POST_SWITCH
   STATE_DIR LOCK_WAIT)
 
@@ -14,7 +14,7 @@ config_defaults() {
   CHECK_CMD=""; PORT="3000"; HEALTH_PATH="/"; HEALTH_TIMEOUT="90"; NETWORK=""; RUN_ARGS=""
   SLOT_HOST_PORTS=""; PROXY="traefik"
   TRAEFIK_FILE=""; TRAEFIK_RULE=""; TRAEFIK_ENTRYPOINTS="web"; TRAEFIK_CERTRESOLVER=""; TRAEFIK_SERVICE_ONLY="0"
-  CADDY_FILE=""; CADDY_RELOAD=""; NGINX_FILE=""; NGINX_RELOAD=""
+  CADDY_FILE=""; CADDY_RELOAD=""; NGINX_FILE=""; NGINX_RELOAD=""; PROXY_TEMPLATE=""
   SWITCH_SETTLE="3"; VERIFY_URL=""; DRAIN_SECONDS="5"; STOP_TIMEOUT="20"; KEEP_RELEASES="3"
   HOOK_PRE_SWITCH=""; HOOK_POST_SWITCH=""; STATE_DIR="/var/lib/updatool"; LOCK_WAIT="900"
   APP=""; IMAGE=""
@@ -43,12 +43,15 @@ config_validate() {
   [[ $PORT =~ ^[0-9]+$ ]] || die "PORT must be a number" "$EXIT_USAGE"
   case "$PROXY" in
     traefik) [ -n "$TRAEFIK_FILE" ] || die "PROXY=traefik needs TRAEFIK_FILE" "$EXIT_USAGE"
-             [ "$TRAEFIK_SERVICE_ONLY" = 1 ] || [ -n "$TRAEFIK_RULE" ] || die "PROXY=traefik needs TRAEFIK_RULE (or TRAEFIK_SERVICE_ONLY=1)" "$EXIT_USAGE" ;;
+             [ "$TRAEFIK_SERVICE_ONLY" = 1 ] || [ -n "$TRAEFIK_RULE" ] || [ -n "$PROXY_TEMPLATE" ] || die "PROXY=traefik needs TRAEFIK_RULE, TRAEFIK_SERVICE_ONLY=1 or PROXY_TEMPLATE" "$EXIT_USAGE" ;;
     caddy)   [ -n "$CADDY_FILE" ] && [ -n "$CADDY_RELOAD" ] || die "PROXY=caddy needs CADDY_FILE and CADDY_RELOAD" "$EXIT_USAGE" ;;
     nginx)   [ -n "$NGINX_FILE" ] && [ -n "$NGINX_RELOAD" ] || die "PROXY=nginx needs NGINX_FILE and NGINX_RELOAD" "$EXIT_USAGE" ;;
     none)    : ;;
     *) die "PROXY must be traefik, caddy, nginx or none" "$EXIT_USAGE" ;;
   esac
+  if [ -n "$PROXY_TEMPLATE" ] && [ ! -f "$(abs_path "$PROXY_TEMPLATE")" ]; then
+    die "PROXY_TEMPLATE not found: $PROXY_TEMPLATE" "$EXIT_USAGE"
+  fi
   if [ -n "$SLOT_HOST_PORTS" ]; then
     # shellcheck disable=SC2086
     set -- $SLOT_HOST_PORTS
@@ -56,6 +59,19 @@ config_validate() {
   elif [ "$PROXY" != none ] && [ -z "$NETWORK" ]; then
     die "set NETWORK (proxy and slots on the same docker network) or SLOT_HOST_PORTS" "$EXIT_USAGE"
   fi
+}
+
+# Paths in the config are relative to the config file's directory.
+abs_path() { case "$1" in /*) echo "$1" ;; *) echo "$CONFIG_DIR/$1" ;; esac; }
+
+# Expand $UPDATOOL_* placeholders inside RUN_ARGS / BUILD_ARGS (shell words).
+# The config is the operator's own file, so eval is acceptable here.
+expand_words() { # string version slot → one word per line
+  local UPDATOOL_APP="$APP" UPDATOOL_VERSION="$2" UPDATOOL_SLOT="${3:-}" UPDATOOL_BUILT_AT
+  UPDATOOL_BUILT_AT="$(date -u +%FT%TZ)"
+  local words=()
+  eval "words=($1)"
+  if [ ${#words[@]} -gt 0 ]; then printf '%s\n' "${words[@]}"; fi
 }
 
 # Release version: --version, else git short SHA (+ "-dirty"), else timestamp.

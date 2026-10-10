@@ -46,8 +46,28 @@ YAML
   fi
 }
 
+# PROXY_TEMPLATE: your own proxy file with placeholders — {{UPSTREAM}} (host:port),
+# {{SLOT}}, {{CONTAINER}}, {{VERSION}}, {{APP}}. Keeps every router, middleware
+# and health check you already have; updatool only swaps the target.
+render_template() { # slot upstream
+  local tpl; tpl="$(abs_path "$PROXY_TEMPLATE")"
+  sed -e "s|{{UPSTREAM}}|$2|g" -e "s|{{SLOT}}|$1|g" -e "s|{{CONTAINER}}|$(container_name "$1")|g" \
+      -e "s|{{VERSION}}|$(slot_version "$1")|g" -e "s|{{APP}}|$APP|g" "$tpl"
+}
+
 proxy_point_to() { # slot
   local up; up="$(slot_upstream "$1")"
+  if [ -n "$PROXY_TEMPLATE" ]; then
+    local target=""
+    case "$PROXY" in traefik) target="$TRAEFIK_FILE" ;; caddy) target="$CADDY_FILE" ;; nginx) target="$NGINX_FILE" ;; esac
+    [ -n "$target" ] || return 0
+    atomic_write "$target" "$(render_template "$1" "$up")" || return 1
+    case "$PROXY" in
+      caddy) ( bash -c "$CADDY_RELOAD" ) >&2 ;;
+      nginx) ( bash -c "$NGINX_RELOAD" ) >&2 ;;
+    esac
+    return
+  fi
   case "$PROXY" in
     traefik) atomic_write "$TRAEFIK_FILE" "$(traefik_config "$up")" ;;
     caddy)   atomic_write "$CADDY_FILE" "# Managed by updatool (live slot: $1)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 — 2026-10-10
+
+- `PROXY_TEMPLATE`: keep your own proxy file (routers, middlewares, health checks) and let updatool swap only `{{UPSTREAM}}` — the safe way to adopt updatool on an existing route
+- `$UPDATOOL_VERSION`, `$UPDATOOL_SLOT`, `$UPDATOOL_APP`, `$UPDATOOL_BUILT_AT` inside `RUN_ARGS` and `BUILD_ARGS`
+
 ## 0.1.0 — 2026-10-10
 
 First public version.

@@ -7,6 +7,8 @@ export UPDATOOL_HOME="$ROOT"
 . "$ROOT/lib/core.sh"
 # shellcheck source=../lib/config.sh
 . "$ROOT/lib/config.sh"
+# shellcheck source=../lib/lock.sh
+. "$ROOT/lib/lock.sh"
 # shellcheck source=../lib/state.sh
 . "$ROOT/lib/state.sh"
 # shellcheck source=../lib/slots.sh
@@ -36,6 +38,17 @@ eq "traefik: entrypoints" "$(grep -o 'entryPoints: .*' <<<"$cfg")" "entryPoints:
 eq "traefik: cert resolver" "$(grep -c 'certResolver: le' <<<"$cfg")" "1"
 TRAEFIK_SERVICE_ONLY=1
 eq "traefik: service-only has no router" "$(grep -c 'routers:' <<<"$(traefik_config shop-blue:8080)" || true)" "0"
+
+# expand_words: placeholders in RUN_ARGS / BUILD_ARGS
+APP=shop
+eq "expand_words fills the version" "$(expand_words '-e GIT_SHA=$UPDATOOL_VERSION --label "a b"' abc1234 green | tr '\n' '|')" "-e|GIT_SHA=abc1234|--label|a b|"
+
+# PROXY_TEMPLATE rendering keeps the user's file and swaps the target
+CONFIG_DIR="$(mktemp -d)"; printf 'url: http://{{UPSTREAM}}\nslot: {{SLOT}} app: {{APP}}\n' > "$CONFIG_DIR/route.tpl"
+PROXY_TEMPLATE=route.tpl; STATE_DIR="$CONFIG_DIR/state"; PORT=8080; NETWORK=web
+eq "template: upstream" "$(render_template green shop-green:8080 | head -1)" "url: http://shop-green:8080"
+eq "template: slot and app" "$(render_template green shop-green:8080 | tail -1)" "slot: green app: shop"
+PROXY_TEMPLATE=""; rm -rf "$CONFIG_DIR"
 
 tmp="$(mktemp -d)"
 touch "$tmp/package.json"; echo '{"dependencies":{"next":"16"}}' > "$tmp/package.json"

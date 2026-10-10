@@ -50,7 +50,7 @@ build_image() { # version
   local version="$1" log args=() a
   ensure_builder
   log="$(app_dir)/last-build.log"
-  for a in $BUILD_ARGS; do args+=(--build-arg "$a"); done
+  while IFS= read -r a; do [ -n "$a" ] && args+=(--build-arg "$a"); done < <(expand_words "$BUILD_ARGS" "$version")
   if [ -n "$BUILD_PLATFORM" ]; then args+=(--platform "$BUILD_PLATFORM"); fi
   step "build $IMAGE:$version ${C_DIM}(log: $log)${C_RESET}"
   local t0; t0=$(date +%s)

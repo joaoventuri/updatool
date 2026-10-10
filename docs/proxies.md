@@ -32,6 +32,33 @@ Already have routers (middlewares, redirects) you want to keep? Set
 routers keep `service: <APP>`. Remove that service from your own file first —
 Traefik rejects a service defined twice.
 
+## Your own file, as a template (any proxy)
+
+Already have a hand-tuned route file (redirects, middlewares, health checks)?
+Keep it: copy it to a template and replace only the target with `{{UPSTREAM}}`.
+
+```bash
+PROXY=traefik                         # or caddy / nginx (their reload commands still apply)
+TRAEFIK_FILE=/opt/traefik/dynamic/shop.yml
+PROXY_TEMPLATE=shop.yml.tpl           # relative to updatool.conf
+```
+
+```yaml
+# shop.yml.tpl
+http:
+  routers:
+    shop: { rule: "Host(`shop.example.com`)", entryPoints: [websecure], service: shop, tls: { certResolver: le } }
+  services:
+    shop:
+      loadBalancer:
+        servers: [{ url: "http://{{UPSTREAM}}" }]
+        healthCheck: { path: /health, interval: 10s }
+```
+
+Placeholders: `{{UPSTREAM}}` (host:port of the live slot), `{{SLOT}}`, `{{CONTAINER}}`,
+`{{VERSION}}`, `{{APP}}`. This is the zero-risk way to adopt updatool on an
+existing route: the file keeps its exact shape, only the target changes.
+
 ## Caddy
 
 ```bash

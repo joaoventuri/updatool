@@ -3,7 +3,7 @@
 # https://github.com/joaoventuri/updatool  ·  MIT License
 set -euo pipefail
 
-UPDATOOL_VERSION="0.1.0"
+UPDATOOL_VERSION="0.2.0"
 
 # Resolve the install dir even when called through a symlink.
 _src="${BASH_SOURCE[0]}"

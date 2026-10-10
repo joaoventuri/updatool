@@ -17,13 +17,14 @@ HEALTH_TIMEOUT=90           # seconds to wait for the new slot
 # ── Build ───────────────────────────────────────────────────────────────────
 CONTEXT=.
 DOCKERFILE=Dockerfile
-# BUILD_ARGS="NEXT_PUBLIC_API=https://api.example.com"
+# BUILD_ARGS='NEXT_PUBLIC_API=https://api.example.com GIT_SHA=$UPDATOOL_VERSION BUILT_AT=$UPDATOOL_BUILT_AT'
 # BUILD_CPUS=2              # cap the builder on a shared host (protects users)
 # BUILD_MEMORY=4g
 
 # ── Run ─────────────────────────────────────────────────────────────────────
 NETWORK=web                 # docker network shared with the proxy
-# RUN_ARGS="--env-file /opt/__APP__/app.env -v __APP___data:/data --memory 2g"
+# RUN_ARGS='--env-file /opt/__APP__/app.env -v __APP___data:/data --memory 2g -e GIT_SHA=$UPDATOOL_VERSION'
+#   (single quotes: $UPDATOOL_VERSION / $UPDATOOL_SLOT / $UPDATOOL_APP are filled in per release)
 # SLOT_HOST_PORTS="3001 3002"   # instead of NETWORK, when the proxy runs on the host
 
 # ── Traffic switch ──────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ TRAEFIK_CERTRESOLVER=letsencrypt
 # NGINX_FILE=/etc/nginx/conf.d/__APP__-upstream.conf     # proxy_pass http://__APP__;
 # NGINX_RELOAD="docker exec nginx sh -c 'nginx -t && nginx -s reload'"
 
+# PROXY_TEMPLATE=route.tpl  # YOUR proxy file with {{UPSTREAM}} — keeps routers, middlewares, health checks
 # VERIFY_URL=https://app.example.com/   # checked through the proxy after the switch
 SWITCH_SETTLE=3             # seconds for the proxy to pick up the new route
 DRAIN_SECONDS=5             # in-flight requests finish on the old slot

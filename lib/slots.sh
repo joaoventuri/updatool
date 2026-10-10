@@ -4,17 +4,15 @@
 # rollback is just "start it again and switch back".
 
 slot_run_args() { # slot version → prints one docker run argument per line
-  local slot="$1" version="$2" extra=()
+  local slot="$1" version="$2"
   printf '%s\n' -d --name "$(container_name "$slot")" --restart unless-stopped \
     --label "io.updatool.app=$APP" --label "io.updatool.slot=$slot" --label "io.updatool.version=$version" \
     -e "APP_VERSION=$version" -e "UPDATOOL_SLOT=$slot"
   if [ -n "$NETWORK" ]; then printf '%s\n' --network "$NETWORK"; fi
   if [ -n "$SLOT_HOST_PORTS" ]; then printf '%s\n' -p "127.0.0.1:$(slot_host_port "$slot"):$PORT"; fi
-  if [ -n "$RUN_ARGS" ]; then
-    # RUN_ARGS comes from the operator's own config file: shell words, quotes allowed.
-    eval "extra=($RUN_ARGS)"
-    printf '%s\n' "${extra[@]}"
-  fi
+  # RUN_ARGS: shell words from the operator's config; $UPDATOOL_VERSION,
+  # $UPDATOOL_SLOT and $UPDATOOL_APP are available (use single quotes in the file).
+  if [ -n "$RUN_ARGS" ]; then expand_words "$RUN_ARGS" "$version" "$slot"; fi
   printf '%s\n' "$IMAGE:$version"
 }
 
