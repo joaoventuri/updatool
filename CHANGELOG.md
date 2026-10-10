@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2 — 2026-10-10
+
+- Options are accepted before the command too (`updatool -c app.conf ship`)
+
 ## 0.2.1 — 2026-10-10
 
 - Fix: a relative `DOCKERFILE` is resolved inside `CONTEXT` (like `docker build`), not next to `updatool.conf`
