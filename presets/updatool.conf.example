@@ -1,0 +1,55 @@
+# updatool.conf — https://github.com/joaoventuri/updatool
+# Plain KEY=value (shell syntax). Every key can be overridden with UPDATOOL_<KEY>.
+# Detected stack: __STACK__
+
+# ── App ─────────────────────────────────────────────────────────────────────
+APP=__APP__                 # slots become __APP__-blue and __APP__-green
+# IMAGE=__APP__             # image name (default: APP)
+PORT=3000                   # port the app listens on INSIDE the container
+HEALTH_PATH=/               # must answer 2xx/3xx when the app is ready
+HEALTH_TIMEOUT=90           # seconds to wait for the new slot
+
+# ── Gate: runs BEFORE the build; a failure stops the ship ────────────────────
+# Keep type checks / tests here instead of inside the Dockerfile: they run once,
+# in parallel with nothing, and the image build stays incremental.
+# CHECK_CMD="npm run typecheck && npm test"
+
+# ── Build ───────────────────────────────────────────────────────────────────
+CONTEXT=.
+DOCKERFILE=Dockerfile
+# BUILD_ARGS="NEXT_PUBLIC_API=https://api.example.com"
+# BUILD_CPUS=2              # cap the builder on a shared host (protects users)
+# BUILD_MEMORY=4g
+
+# ── Run ─────────────────────────────────────────────────────────────────────
+NETWORK=web                 # docker network shared with the proxy
+# RUN_ARGS="--env-file /opt/__APP__/app.env -v __APP___data:/data --memory 2g"
+# SLOT_HOST_PORTS="3001 3002"   # instead of NETWORK, when the proxy runs on the host
+
+# ── Traffic switch ──────────────────────────────────────────────────────────
+PROXY=traefik               # traefik | caddy | nginx | none
+TRAEFIK_FILE=/opt/traefik/dynamic/__APP__.yml   # file-provider DIRECTORY must be mounted
+TRAEFIK_RULE='Host(`app.example.com`)'
+TRAEFIK_ENTRYPOINTS=websecure
+TRAEFIK_CERTRESOLVER=letsencrypt
+# TRAEFIK_SERVICE_ONLY=1    # keep your own routers; updatool only writes the service
+
+# CADDY_FILE=/etc/caddy/upstreams/__APP__.caddy          # `import` it inside your site block
+# CADDY_RELOAD="docker exec caddy caddy reload --config /etc/caddy/Caddyfile"
+# NGINX_FILE=/etc/nginx/conf.d/__APP__-upstream.conf     # proxy_pass http://__APP__;
+# NGINX_RELOAD="docker exec nginx sh -c 'nginx -t && nginx -s reload'"
+
+# VERIFY_URL=https://app.example.com/   # checked through the proxy after the switch
+SWITCH_SETTLE=3             # seconds for the proxy to pick up the new route
+DRAIN_SECONDS=5             # in-flight requests finish on the old slot
+STOP_TIMEOUT=20             # graceful stop of the old slot (SIGTERM → SIGKILL)
+
+# ── Hooks (run on the server, with UPDATOOL_VERSION / UPDATOOL_SLOT set) ────
+# Single quotes: the variables are filled in when the hook runs, not when this file is read.
+# HOOK_PRE_SWITCH='docker exec "$UPDATOOL_CONTAINER" npm run migrate'
+# HOOK_POST_SWITCH='docker restart __APP__-worker'
+
+# ── Housekeeping ────────────────────────────────────────────────────────────
+KEEP_RELEASES=3
+# STATE_DIR=/var/lib/updatool
+# LOCK_WAIT=900             # seconds to wait for another ship to finish

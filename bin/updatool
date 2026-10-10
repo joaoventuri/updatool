@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# updatool — build fast, ship without downtime, let your agents deploy safely.
+# https://github.com/joaoventuri/updatool  ·  MIT License
+set -euo pipefail
+
+UPDATOOL_VERSION="0.1.0"
+
+# Resolve the install dir even when called through a symlink.
+_src="${BASH_SOURCE[0]}"
+while [ -L "$_src" ]; do
+  _dir="$(cd -P "$(dirname "$_src")" && pwd)"
+  _src="$(readlink "$_src")"
+  [[ $_src != /* ]] && _src="$_dir/$_src"
+done
+UPDATOOL_HOME="$(cd -P "$(dirname "$_src")/.." && pwd)"
+export UPDATOOL_HOME
+
+# shellcheck source=../lib/core.sh
+. "$UPDATOOL_HOME/lib/core.sh"
+# shellcheck source=../lib/config.sh
+. "$UPDATOOL_HOME/lib/config.sh"
+# shellcheck source=../lib/lock.sh
+. "$UPDATOOL_HOME/lib/lock.sh"
+# shellcheck source=../lib/state.sh
+. "$UPDATOOL_HOME/lib/state.sh"
+# shellcheck source=../lib/build.sh
+. "$UPDATOOL_HOME/lib/build.sh"
+# shellcheck source=../lib/slots.sh
+. "$UPDATOOL_HOME/lib/slots.sh"
+# shellcheck source=../lib/proxy.sh
+. "$UPDATOOL_HOME/lib/proxy.sh"
+# shellcheck source=../lib/commands.sh
+. "$UPDATOOL_HOME/lib/commands.sh"
+
+usage() {
+  cat <<EOF
+${C_BOLD}updatool${C_RESET} ${UPDATOOL_VERSION} — build fast, ship without downtime.
+
+${C_BOLD}Usage${C_RESET}
+  updatool <command> [options]
+
+${C_BOLD}Commands${C_RESET}
+  init        Detect the stack and write updatool.conf (+ a cache-ready Dockerfile)
+  doctor      Check docker, buildx, proxy, network and permissions
+  check       Run the pre-ship gate (CHECK_CMD: tests, type checks, lint)
+  build       Build the image with the persistent cache (no traffic change)
+  ship        check → build → start idle slot → health → switch → drain
+  rollback    Put the previous slot back in seconds
+  status      Show live slot, versions and lock holder
+  history     Show the last ships and rollbacks
+  lock        Show who holds the deploy lock
+  logs        Follow the logs of the live slot
+  gc          Remove old images and trim the build cache
+
+${C_BOLD}Common options${C_RESET}
+  -c, --config FILE     Config file (default: ./updatool.conf)
+  -v, --version VER     Release version (default: git short SHA)
+  --expect VER          Only ship if this version is live (race guard)
+  --skip-checks         Skip CHECK_CMD (not recommended)
+  --skip-build          Ship an image that already exists
+  --no-wait             Fail immediately if another ship holds the lock
+  --json                Machine-readable output (for CI and AI agents)
+  -h, --help            Show this help
+
+Docs: https://github.com/joaoventuri/updatool
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  [ $# -gt 0 ] && shift
+  case "$cmd" in
+    ""|-h|--help|help) usage ;;
+    --version|version) echo "updatool $UPDATOOL_VERSION" ;;
+    init)     cmd_init "$@" ;;
+    doctor)   cmd_doctor "$@" ;;
+    check)    cmd_check "$@" ;;
+    build)    cmd_build "$@" ;;
+    ship)     cmd_ship "$@" ;;
+    rollback) cmd_rollback "$@" ;;
+    status)   cmd_status "$@" ;;
+    history)  cmd_history "$@" ;;
+    lock)     cmd_lock "$@" ;;
+    logs)     cmd_logs "$@" ;;
+    gc)       cmd_gc "$@" ;;
+    *) err "unknown command: $cmd"; usage >&2; exit "$EXIT_USAGE" ;;
+  esac
+}
+
+main "$@"
