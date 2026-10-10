@@ -9,8 +9,10 @@ DEST="$PREFIX/lib/updatool"
 URL="https://github.com/joaoventuri/updatool/archive/refs/heads/$REF.tar.gz"
 case "$REF" in v[0-9]*) URL="https://github.com/joaoventuri/updatool/archive/refs/tags/$REF.tar.gz" ;; esac
 
+# sudo only when the closest existing directory is not writable by us
 SUDO=""
-if [ "$(id -u)" != 0 ] && [ ! -w "$PREFIX/lib" ]; then SUDO="sudo"; fi
+probe="$PREFIX/lib"; [ -d "$probe" ] || probe="$PREFIX"; [ -d "$probe" ] || probe="$(dirname "$PREFIX")"
+if [ "$(id -u)" != 0 ] && [ ! -w "$probe" ]; then SUDO="sudo"; fi
 command -v curl >/dev/null || { echo "updatool: curl is required" >&2; exit 1; }
 command -v bash >/dev/null || { echo "updatool: bash is required" >&2; exit 1; }
 
