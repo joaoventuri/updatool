@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 — 2026-10-11
+
+- Next.js preset: Turbopack disk cache **off** by default. Measured on a real app, Next 16.2.1 and 16.4.0: about 1 in 3 warm builds missed the change to `globals.css` and returned the previous release's CSS (the fresh-CSS guard caught every one). A cache that misses file changes cannot be trusted for the JavaScript either; the average saving was ~30 s
+- Methodology: after adding a freshness guard, measure how often it fires
+
 ## 0.3.0 — 2026-10-10
 
 - `--source <tar.gz|dir>` for `build` and `ship`: each release builds from a private snapshot taken **after** the deploy lock is held. Fixes the race where two agents extract into one shared source folder and a build ships the other agent's files (or a mix)

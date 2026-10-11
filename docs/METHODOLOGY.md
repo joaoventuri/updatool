@@ -21,10 +21,16 @@ cache every time, so a one-line fix costs a full cold build.
 **A cache must prove it is fresh.** Compiler caches (Turbopack, webpack, Gradle…)
 are fast because they skip work — and once in a while they skip work they should
 have done. We shipped a Next.js image with the new JavaScript and the *previous*
-release's CSS, byte for byte; three faithful replays could not reproduce it. Do
-not answer that by turning the cache off (4× slower forever). Make every build
-plant a unique marker in its inputs and check that the marker reached the output;
-if not, wipe the cache and build cold, automatically (`presets/nextjs-build.sh`).
+release's CSS, byte for byte. Make every build plant a unique marker in its
+inputs and check that the marker reached the output; if not, wipe the cache and
+build cold, automatically (`presets/nextjs-build.sh`).
+
+Then **measure how often the guard fires**. With Turbopack's disk cache
+(`turbopackFileSystemCacheForBuild`) it fired in ~1 of 3 real builds, on Next
+16.2.1 and 16.4.0 alike — the cache missed a change to a file that changes on
+every build. A cache that misses file changes cannot be trusted for the parts you
+do not check (the JavaScript), and the average saving (~30 s) was not worth it.
+We turned it off. Keep a compiler cache only when the guard almost never fires.
 
 - Mount compiler caches with **`sharing=locked`**: concurrent builds wait for each
   other instead of writing the same cache at once (`shared` is the default).

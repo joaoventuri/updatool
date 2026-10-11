@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 # updatool preset — Next.js (output: "standalone")
-# next.config: experimental.turbopackFileSystemCacheForBuild = true
-#              typescript.ignoreBuildErrors = true   (type check runs in CHECK_CMD)
+# next.config: typescript.ignoreBuildErrors = true   (type check runs in CHECK_CMD)
+#   Do NOT enable experimental.turbopackFileSystemCacheForBuild for production
+#   builds: measured on Next 16.2.1 and 16.4.0, ~1 in 3 warm builds missed the
+#   change to globals.css and shipped the previous release's CSS (see
+#   docs/METHODOLOGY.md, "A cache must prove it is fresh").
 # scripts/build-next.sh = presets/nextjs-build.sh (proves the CSS is fresh)
 FROM node:22-alpine AS deps
 WORKDIR /app
@@ -13,12 +16,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# .next/cache survives between builds: a one-line change compiles in seconds.
-# sharing=locked: two builds never write the compiler cache at the same time.
-# build-next.sh rebuilds cold if the cache ever hands back stale CSS.
+# Cold compile on purpose (no Turbopack disk cache, see above). The speed comes
+# from the npm cache mount and from moving the type check to CHECK_CMD.
+# If you ever re-enable the compiler cache, mount it with sharing=locked:
+#   RUN --mount=type=cache,target=/app/.next/cache,sharing=locked ...
+# and keep build-next.sh: it rebuilds cold when the cache hands back stale CSS.
 ARG APP_VERSION
-RUN --mount=type=cache,target=/app/.next/cache,sharing=locked \
-    APP_VERSION="$APP_VERSION" sh scripts/build-next.sh
+RUN APP_VERSION="$APP_VERSION" sh scripts/build-next.sh
 
 FROM node:22-alpine AS runner
 WORKDIR /app

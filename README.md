@@ -128,7 +128,7 @@ updatool ships **containers**, so the language doesn't matter. What changes per 
 
 | Stack | Cached between builds |
 |---|---|
-| Next.js | npm cache + `.next/cache` (Turbopack FS cache, `sharing=locked`) with a fresh-CSS proof (`nextjs-build.sh`), type check moved to the gate |
+| Next.js | npm cache, type check moved to the gate, fresh-CSS proof (`nextjs-build.sh`); Turbopack disk cache **off** (stale CSS in ~1/3 of builds, measured) |
 | Node | `~/.npm` (pnpm store / yarn cache variants in the file) |
 | Python | `~/.cache/pip` (or `~/.cache/uv`) |
 | Go | module cache + `~/.cache/go-build` |
